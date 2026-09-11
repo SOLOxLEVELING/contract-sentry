@@ -23,13 +23,7 @@ export interface ExecutionStep {
 
 const model = new BedrockModel({
   modelId: process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0',
-  region: process.env.APP_AWS_REGION || 'ap-southeast-2',
-  clientConfig: process.env.APP_AWS_ACCESS_KEY_ID ? {
-    credentials: {
-      accessKeyId: process.env.APP_AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.APP_AWS_SECRET_ACCESS_KEY!,
-    },
-  } : undefined,
+  region: process.env.AWS_REGION || 'ap-southeast-2',
   maxTokens: 4096,
   temperature: 0.2,
 });
