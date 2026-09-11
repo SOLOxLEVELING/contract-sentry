@@ -6,12 +6,17 @@ import {
   type DocumentFormat,
   type ImageFormat,
 } from '@aws-sdk/client-bedrock-runtime';
+
+if (process.env.APP_AWS_ACCESS_KEY_ID) {
+  process.env.AWS_ACCESS_KEY_ID = process.env.APP_AWS_ACCESS_KEY_ID;
+  process.env.AWS_SECRET_ACCESS_KEY = process.env.APP_AWS_SECRET_ACCESS_KEY;
+}
 import { z } from 'zod';
 
 export const maxDuration = 60;
 
 const client = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || 'ap-southeast-2',
+  region: process.env.APP_AWS_REGION || 'ap-southeast-2',
 });
 
 const modelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0';

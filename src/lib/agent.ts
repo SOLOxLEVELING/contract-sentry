@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { Agent, BedrockModel, tool } from '@strands-agents/sdk';
+
+if (process.env.APP_AWS_ACCESS_KEY_ID) {
+  process.env.AWS_ACCESS_KEY_ID = process.env.APP_AWS_ACCESS_KEY_ID;
+  process.env.AWS_SECRET_ACCESS_KEY = process.env.APP_AWS_SECRET_ACCESS_KEY;
+}
 import {
   CONTRACT_RULES,
   LineItemSchema,
@@ -23,7 +28,7 @@ export interface ExecutionStep {
 
 const model = new BedrockModel({
   modelId: process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0',
-  region: process.env.AWS_REGION || 'ap-southeast-2',
+  region: process.env.APP_AWS_REGION || 'ap-southeast-2',
   maxTokens: 4096,
   temperature: 0.2,
 });
