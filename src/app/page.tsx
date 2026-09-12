@@ -766,9 +766,16 @@ export default function Home() {
                   {report.verdict === 'FLAGGED' && (
                     <>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           setActionState('dispute_loading');
-                          setTimeout(() => setActionState('dispute_sent'), 1500);
+                          try {
+                            await fetch('/api/notify', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ invoice, report }),
+                            });
+                          } catch {}
+                          setActionState('dispute_sent');
                         }}
                         className="flex flex-1 items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-[13px] font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
                       >

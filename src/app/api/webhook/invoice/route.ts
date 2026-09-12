@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { runAudit } from '@/lib/agent';
 import { saveAuditEvent } from '@/lib/audit-store';
+import { sendDisputeAlert } from '@/lib/notifications';
 
 export const maxDuration = 60;
 
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
       source: 'WEBHOOK',
     });
 
+    let notificationSent = false;
+    if (report && report.verdict === 'FLAGGED') {
+      const { sent } = await sendDisputeAlert(report, invoice);
+      notificationSent = sent;
+    }
+
     return NextResponse.json({
       success: true,
       eventId: event.id,
@@ -65,6 +72,7 @@ export async function POST(request: Request) {
       overcharge: report?.totalOvercharge ?? 0,
       violations: report?.violations.length ?? 0,
       totalClaimed: invoice.totalClaimed,
+      notificationSent,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
