@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Shield,
   ShieldCheck,
@@ -20,6 +20,8 @@ import {
   X,
   Banknote,
   Upload,
+  Terminal,
+  Radio,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -85,6 +87,18 @@ interface EditableRow {
   description: string;
   hours: string;
   rate: string;
+}
+
+interface WebhookEvent {
+  id: string;
+  timestamp: string;
+  vendorName: string;
+  invoiceNumber: string;
+  totalClaimed: number;
+  verdict: 'APPROVED' | 'FLAGGED';
+  overcharge: number;
+  violations: number;
+  source: 'WEBHOOK' | 'UI';
 }
 
 type Tab = 'clean' | 'dirty' | 'custom';
@@ -175,6 +189,25 @@ export default function Home() {
   const [customClause, setCustomClause] = useState('SOW-2026-Section 4.2');
   const [extracting, setExtracting] = useState(false);
   const [extractNotice, setExtractNotice] = useState<string | null>(null);
+  const [webhookOpen, setWebhookOpen] = useState(false);
+  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
+  const [curlCopied, setCurlCopied] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (webhookOpen) {
+      const poll = () => {
+        fetch('/api/webhook/events').then(r => r.json()).then(d => {
+          if (d.events) setWebhookEvents(d.events);
+        }).catch(() => {});
+      };
+      poll();
+      pollingRef.current = setInterval(poll, 3000);
+      return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+    } else {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
+  }, [webhookOpen]);
 
   // ── Tab switching ──────────────────────────────────────────────────
 
@@ -374,12 +407,125 @@ export default function Home() {
             </div>
             <span className="text-[15px] font-semibold text-zinc-100">ContractSentry</span>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] text-zinc-500">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-            Strands SDK &middot; Amazon Nova Pro
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setWebhookOpen(!webhookOpen)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+                webhookOpen
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <Terminal className="h-3 w-3" />
+              Webhook Console
+              {webhookEvents.length > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-emerald-500/20 px-1 text-[10px] font-mono text-emerald-400">
+                  {webhookEvents.length}
+                </span>
+              )}
+            </button>
+            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] text-zinc-500">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+              Strands SDK &middot; Amazon Nova Pro
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Webhook Console */}
+      {webhookOpen && (
+        <div className="border-b border-zinc-800/60 bg-zinc-900/50">
+          <div className="mx-auto max-w-7xl px-6 py-4">
+            <div className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              <Radio className="h-3 w-3 text-emerald-500" />
+              Autonomous Webhook Ingestion
+            </div>
+
+            <div className="mb-4 rounded-md border border-zinc-800 bg-zinc-950 p-3">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-600">POST /api/webhook/invoice</span>
+                <button
+                  onClick={() => {
+                    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com';
+                    const cmd = `curl -X POST ${origin}/api/webhook/invoice \\\n  -H "Content-Type: application/json" \\\n  -d '{"vendorName":"Acme Consulting","invoiceNumber":"INV-WH-001","date":"2026-09-12","lineItems":[{"description":"Backend Development","hours":30,"rate":120},{"description":"Weekend Rush Surcharge","hours":5,"rate":150}]}'`;
+                    navigator.clipboard.writeText(cmd);
+                    setCurlCopied(true);
+                    setTimeout(() => setCurlCopied(false), 2000);
+                  }}
+                  className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-400 transition-colors hover:bg-zinc-700"
+                >
+                  {curlCopied ? <><Check className="h-3 w-3 text-emerald-400" /> Copied</> : <><Copy className="h-3 w-3" /> Copy cURL</>}
+                </button>
+              </div>
+              <pre className="overflow-x-auto text-[12px] leading-relaxed text-emerald-400/80">
+                <code>{`curl -X POST ${typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'}/api/webhook/invoice \\
+  -H "Content-Type: application/json" \\
+  -d '{"vendorName":"Acme Consulting","invoiceNumber":"INV-WH-001","date":"2026-09-12","lineItems":[{"description":"Backend Development","hours":30,"rate":120},{"description":"Weekend Rush Surcharge","hours":5,"rate":150}]}'`}</code>
+              </pre>
+            </div>
+
+            <div className="rounded-md border border-zinc-800 bg-zinc-950">
+              <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
+                <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+                  Live Ingest Stream
+                </span>
+                <span className="text-[10px] font-mono text-zinc-700">polling 3s</span>
+              </div>
+              {webhookEvents.length === 0 ? (
+                <div className="px-3 py-6 text-center text-[12px] text-zinc-600">
+                  No webhook events yet. Paste the cURL command in your terminal to ingest an invoice.
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-left text-[10px] uppercase tracking-wider text-zinc-600">
+                      <th className="px-3 py-2 font-medium">Time</th>
+                      <th className="px-3 py-2 font-medium">Source</th>
+                      <th className="px-3 py-2 font-medium">Vendor</th>
+                      <th className="px-3 py-2 font-medium">Invoice</th>
+                      <th className="px-3 py-2 font-medium text-right">Claimed</th>
+                      <th className="px-3 py-2 font-medium text-right">Overcharge</th>
+                      <th className="px-3 py-2 font-medium text-center">Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {webhookEvents.map((evt) => (
+                      <tr key={evt.id} className="border-b border-zinc-800/50 last:border-0">
+                        <td className="px-3 py-2 font-mono text-zinc-600">
+                          {new Date(evt.timestamp).toLocaleTimeString()}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                            evt.source === 'WEBHOOK' ? 'bg-blue-500/10 text-blue-400' : 'bg-zinc-800 text-zinc-400'
+                          }`}>
+                            {evt.source}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-zinc-300">{evt.vendorName}</td>
+                        <td className="px-3 py-2 font-mono text-zinc-500">{evt.invoiceNumber}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-zinc-300">
+                          {fmt(evt.totalClaimed)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-red-400">
+                          {evt.overcharge > 0 ? fmt(evt.overcharge) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                            evt.verdict === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                          }`}>
+                            {evt.verdict}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-7xl px-6 py-6">
         {/* Tab bar */}
