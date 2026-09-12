@@ -172,8 +172,8 @@ function nextId() {
 // ── Page ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab | null>(null);
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [tab, setTab] = useState<Tab | null>('dirty');
+  const [invoice, setInvoice] = useState<Invoice | null>(DIRTY_INVOICE);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AuditResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
