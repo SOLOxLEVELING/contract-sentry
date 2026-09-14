@@ -18,3 +18,5 @@ npm-debug.log*
 
 # claude
 .claude/
+CLAUDE.md
+PROJECT_SPEC.md
